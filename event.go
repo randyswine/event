@@ -7,20 +7,26 @@ import (
 
 // Event - интерфейс события.
 type Event interface {
-	Name() string                 // Name() возвращает тип события.
-	Data() map[string]interface{} // Data() возвращает данные события.
-	Date() time.Time              // Date() возвращает время события.
+	Name() string    // Name() возвращает тип события.
+	Data() any       // Data() возвращает данные события.
+	Date() time.Time // Date() возвращает время события.
+}
+
+// EventListener - интерфейс объекта-подписчика на события.
+// Применять в том случае, если метода обработки должен иметь некоторый котекст.
+type EventListener interface {
+	Handle(Event) error
 }
 
 // basicEvent - базовая имплементация Event.
 type basicEvent struct {
-	name string                 // Тип события.
-	data map[string]interface{} // Данные события.
-	date time.Time              // Время события.
+	name string    // Тип события.
+	data any       // Данные события.
+	date time.Time // Время события.
 }
 
 // NewEvent() возвращает basicEvent.
-func NewEvent(name string, data map[string]interface{}) Event {
+func NewEvent(name string, data any) Event {
 	return basicEvent{
 		name: name,
 		data: data,
@@ -34,7 +40,7 @@ func (e basicEvent) Name() string {
 }
 
 // Data() возвращает данные события.
-func (e basicEvent) Data() map[string]interface{} {
+func (e basicEvent) Data() any {
 	return e.data
 }
 
