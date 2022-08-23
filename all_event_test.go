@@ -4,9 +4,25 @@ import (
 	"testing"
 )
 
+func TestDispatcher(t *testing.T) {
+	wantEventName := "firstInitalization"
+	firstDispatcherInitialization := Dispatcher()
+	var gotEventName string
+	firstDispatcherInitialization.On(wantEventName, func(e Event) error {
+		gotEventName = e.Name()
+		return nil
+	})
+	secondDispatcherInitalization := Dispatcher()
+	secondDispatcherInitalization.FireEvent(NewEvent("firstInitalization", nil))
+	if gotEventName != wantEventName {
+		t.Errorf("FireEvent() got event name \"%s\"; want \"%s\"", gotEventName, wantEventName)
+		t.Fail()
+	}
+}
+
 func TestFireEvent(t *testing.T) {
 	wantEventName := "test"
-	dispatcher := New()
+	dispatcher := Dispatcher()
 	var gotEventName string
 	dispatcher.On(wantEventName, func(e Event) error {
 		gotEventName = e.Name()
@@ -21,7 +37,7 @@ func TestFireEvent(t *testing.T) {
 
 func TestSubscibe(t *testing.T) {
 	wantEventName := "test_listener"
-	dispatcher := New()
+	dispatcher := Dispatcher()
 	listener := &testListener{}
 	dispatcher.Subscribe(wantEventName, listener)
 	dispatcher.FireEvent(NewEvent("test_listener", nil))

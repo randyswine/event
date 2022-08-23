@@ -2,6 +2,9 @@ package event
 
 import "sync"
 
+var dispatcherInstance *dispatcher // Синглтон диспетчера.
+var rmx sync.RWMutex               // RMutex синглтона диспетчера.
+
 // dispatcher реализует таблицу подписок и рассылку событий подписчикам.
 type dispatcher struct {
 	mx                sync.Mutex                   // Доступ к таблице подписок блокируется.
@@ -9,10 +12,19 @@ type dispatcher struct {
 }
 
 // New() инициализирует таблицу подписок и возвращает указатель на диспетчер событий.
-func New() *dispatcher {
-	return &dispatcher{
-		subscribeRegister: make(map[string][]HandlerCallback, 0),
+func Dispatcher() *dispatcher {
+	rmx.RLock()
+	instance := dispatcherInstance
+	rmx.RUnlock()
+	if instance == nil {
+		rmx.Lock()
+		dispatcherInstance = &dispatcher{
+			subscribeRegister: make(map[string][]HandlerCallback, 0),
+		}
+		instance = dispatcherInstance
+		rmx.Unlock()
 	}
+	return instance
 }
 
 // On() позволяет подписаться на события определенного типа через функцию обратного вызова.
