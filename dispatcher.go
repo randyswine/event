@@ -3,34 +3,34 @@ package event
 import "sync"
 
 var dispatcherInstance *dispatcher // Синглтон диспетчера.
-var rmx sync.RWMutex               // RMutex синглтона диспетчера.
+var rwmx sync.RWMutex              // RMutex синглтона диспетчера.
 
 // dispatcher реализует таблицу подписок и рассылку событий подписчикам.
 type dispatcher struct {
-	mx                sync.Mutex                   // Доступ к таблице подписок блокируется.
+	rwmx              sync.RWMutex                 // Доступ к таблице подписок блокируется.
 	subscribeRegister map[string][]HandlerCallback // Таблица подписок. Ключом является имя события.
 }
 
 // New() инициализирует таблицу подписок и возвращает указатель на диспетчер событий.
 func Dispatcher() *dispatcher {
-	rmx.RLock()
+	rwmx.RLock()
 	instance := dispatcherInstance
-	rmx.RUnlock()
+	rwmx.RUnlock()
 	if instance == nil {
-		rmx.Lock()
+		rwmx.Lock()
 		dispatcherInstance = &dispatcher{
 			subscribeRegister: make(map[string][]HandlerCallback, 0),
 		}
 		instance = dispatcherInstance
-		rmx.Unlock()
+		rwmx.Unlock()
 	}
 	return instance
 }
 
 // On() позволяет подписаться на события определенного типа через функцию обратного вызова.
 func (d *dispatcher) On(eventName string, callback HandlerCallback) {
-	defer d.mx.Unlock()
-	d.mx.Lock()
+	defer d.rwmx.Unlock()
+	d.rwmx.Lock()
 	d.subscribeRegister[eventName] = append(d.subscribeRegister[eventName], callback)
 }
 
@@ -41,8 +41,8 @@ func (d *dispatcher) Subscribe(eventName string, listener EventListener) {
 
 // FireEvent() инициирует вызов в отдельной рутине всех функций обратного вызова для заданного типа события.
 func (d *dispatcher) FireEvent(e Event) {
-	defer d.mx.Unlock()
-	d.mx.Lock()
+	defer d.rwmx.RUnlock()
+	d.rwmx.RLock()
 	var wg sync.WaitGroup
 	for _, callback := range d.subscribeRegister[e.Name()] {
 		wg.Add(1)
