@@ -42,6 +42,36 @@ func TestSubscibe(t *testing.T) {
 	}
 }
 
+func TestUnsub(t *testing.T) {
+	wantEventName := "test_unsub"
+	testData := "foo"
+	beforeUnsubGot := "bar"
+	afterUnsubGot := "fizzbazz"
+	handler := On(wantEventName, func(e Event) error {
+		testData = afterUnsubGot
+		return nil
+	})
+	On(wantEventName, func(e Event) error {
+		testData = beforeUnsubGot
+		return nil
+	})
+	handler.Unsub()
+	FireEvent(NewEvent(wantEventName, nil))
+	if testData != beforeUnsubGot {
+		t.Errorf("FireEvent() got event name \"%s\"; want \"%s\"", afterUnsubGot, beforeUnsubGot)
+		t.Fail()
+	}
+}
+
+func TestRepeatedUnsub(t *testing.T) {
+	wantEventName := "test_unsub"
+	handler := On(wantEventName, func(e Event) error {
+		return nil
+	})
+	handler.Unsub()
+	handler.Unsub()
+}
+
 type testListener struct {
 	takedEventName string
 }

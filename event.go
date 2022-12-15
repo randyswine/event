@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // Event - интерфейс события.
@@ -22,26 +24,61 @@ type EventListener interface {
 	Handle(Event) error
 }
 
+type handler struct {
+	eventName  string
+	callbackId string
+	callback   HandlerCallback
+}
+
+// Unsub() удаляет из таблицы подписок callback.
+func (h *handler) Unsub() {
+	if h == nil {
+		return
+	}
+	delete(subscribeRegister[h.eventName], h.callbackId)
+	if len(subscribeRegister[h.eventName]) == 0 {
+		delete(subscribeRegister, h.eventName)
+	}
+	return
+}
+
 var (
-	rwmx              sync.RWMutex                 // RMutex таблицы подписок.
-	subscribeRegister map[string][]HandlerCallback // Таблица подписок. Ключом является имя события.
+	rwmx              sync.RWMutex                  // RMutex таблицы подписок.
+	subscribeRegister map[string]map[string]handler // Таблица подписок. Ключом является имя события.
 )
 
 func init() {
 	// Инициализация таблицы подписок.
-	subscribeRegister = make(map[string][]HandlerCallback)
+	subscribeRegister = make(map[string]map[string]handler)
 }
 
 // On() позволяет подписаться на события определенного типа через функцию обратного вызова.
-func On(eventName string, callback HandlerCallback) {
+func On(eventName string, callback HandlerCallback) *handler {
+	if callback == nil {
+		return nil
+	}
 	defer rwmx.Unlock()
 	rwmx.Lock()
-	subscribeRegister[eventName] = append(subscribeRegister[eventName], callback)
+	guid, err := uuid.NewUUID()
+	if err != nil {
+		panic(fmt.Errorf("Unsubscribe error: %v", err))
+	}
+	sguid := guid.String()
+	newHandler := handler{
+		eventName:  eventName,
+		callbackId: sguid,
+		callback:   callback,
+	}
+	if len(subscribeRegister[eventName]) == 0 {
+		subscribeRegister[eventName] = make(map[string]handler)
+	}
+	subscribeRegister[eventName][sguid] = newHandler
+	return &newHandler
 }
 
 // Subscribe() позволяет объекту поджписаться на события определенного типа.
-func Subscribe(eventName string, listener EventListener) {
-	On(eventName, listener.Handle)
+func Subscribe(eventName string, listener EventListener) *handler {
+	return On(eventName, listener.Handle)
 }
 
 // FireEvent() инициирует вызов в отдельной рутине всех функций обратного вызова для заданного типа события.
@@ -49,18 +86,14 @@ func FireEvent(e Event) {
 	defer rwmx.RUnlock()
 	rwmx.RLock()
 	var wg sync.WaitGroup
-	for _, callback := range subscribeRegister[e.Name()] {
+	for _, handler := range subscribeRegister[e.Name()] {
 		wg.Add(1)
 		go func(e Event, callback HandlerCallback) {
 			defer func() {
 				wg.Done()
 			}()
-			// Callback может быть nil, но вызывать его нельзя.
-			if callback == nil {
-				return
-			}
 			callback(e)
-		}(e, callback)
+		}(e, handler.callback)
 	}
 	wg.Wait()
 }
