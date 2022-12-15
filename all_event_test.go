@@ -4,31 +4,27 @@ import (
 	"testing"
 )
 
-func TestDispatcher(t *testing.T) {
-	wantEventName := "firstInitalization"
-	firstDispatcherInitialization := Dispatcher()
-	var gotEventName string
-	firstDispatcherInitialization.On(wantEventName, func(e Event) error {
-		gotEventName = e.Name()
-		return nil
-	})
-	secondDispatcherInitalization := Dispatcher()
-	secondDispatcherInitalization.FireEvent(NewEvent("firstInitalization", nil))
-	if gotEventName != wantEventName {
-		t.Errorf("FireEvent() got event name \"%s\"; want \"%s\"", gotEventName, wantEventName)
-		t.Fail()
-	}
+func TestFireEventWithNilCallback(t *testing.T) {
+	defer func() {
+		r := recover()
+		if r != nil {
+			t.Errorf("FireEvent() no handle nil callback")
+			t.Fail()
+		}
+	}()
+	wantEventName := "test_fire_event_with_nil_callback"
+	On(wantEventName, nil)
+	FireEvent(NewEvent(wantEventName, nil))
 }
 
 func TestFireEvent(t *testing.T) {
 	wantEventName := "test"
-	dispatcher := Dispatcher()
 	var gotEventName string
-	dispatcher.On(wantEventName, func(e Event) error {
+	On(wantEventName, func(e Event) error {
 		gotEventName = e.Name()
 		return nil
 	})
-	dispatcher.FireEvent(NewEvent("test", nil))
+	FireEvent(NewEvent("test", nil))
 	if gotEventName != wantEventName {
 		t.Errorf("FireEvent() got event name \"%s\"; want \"%s\"", gotEventName, wantEventName)
 		t.Fail()
@@ -37,10 +33,9 @@ func TestFireEvent(t *testing.T) {
 
 func TestSubscibe(t *testing.T) {
 	wantEventName := "test_listener"
-	dispatcher := Dispatcher()
 	listener := &testListener{}
-	dispatcher.Subscribe(wantEventName, listener)
-	dispatcher.FireEvent(NewEvent("test_listener", nil))
+	Subscribe(wantEventName, listener)
+	FireEvent(NewEvent("test_listener", nil))
 	if listener.takedEventName != wantEventName {
 		t.Errorf("FireEvent() got event name \"%s\"; want \"%s\"", listener.takedEventName, wantEventName)
 		t.Fail()
